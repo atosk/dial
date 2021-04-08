@@ -1,5 +1,5 @@
-Core/Src/main.o: ../Core/Src/main.cpp ../Core/Inc/main.h \
- ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h \
+Core/Inc/Dial.o: ../Core/Inc/Dial.cpp ../Core/Inc/Dial.h \
+ ../Core/Inc/main.h ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal.h \
  ../Core/Inc/stm32h7xx_hal_conf.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_rcc.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_def.h \
@@ -36,8 +36,9 @@ Core/Src/main.o: ../Core/Src/main.cpp ../Core/Inc/main.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_ll_usb.h \
  ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd_ex.h \
- ../Core/Inc/Stepper.h ../Core/Inc/main.h ../Core/Inc/my_definitions.h \
- ../Core/Inc/my_definitions.h ../Core/Inc/Dial.h
+ ../Core/Inc/my_definitions.h
+
+../Core/Inc/Dial.h:
 
 ../Core/Inc/main.h:
 
@@ -115,12 +116,4 @@ Core/Src/main.o: ../Core/Src/main.cpp ../Core/Inc/main.h \
 
 ../Drivers/STM32H7xx_HAL_Driver/Inc/stm32h7xx_hal_pcd_ex.h:
 
-../Core/Inc/Stepper.h:
-
-../Core/Inc/main.h:
-
 ../Core/Inc/my_definitions.h:
-
-../Core/Inc/my_definitions.h:
-
-../Core/Inc/Dial.h:

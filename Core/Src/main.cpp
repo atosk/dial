@@ -27,6 +27,7 @@
 /* USER CODE BEGIN Includes */
 #include "Stepper.h"
 #include "my_definitions.h"
+#include "Dial.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -89,12 +90,13 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-
+int num_to_steps(uint8_t full_turns, uint8_t current_number, uint8_t next_number);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 std::StepperMotor *Stepper = new std::StepperMotor(TIM3);;
+std::Dial *Dial = new std::Dial();
 /* USER CODE END 0 */
 
 /**
@@ -143,10 +145,14 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-     Stepper->Move(50*16, CW);
+     //Stepper->Move(50*16, CW);
+     Stepper->Move(Dial->CalculateSteps(CW, 0, 50),CW);
      while (Stepper->Status() == Running) {}
-     Stepper->Move(50*16, CCW);
+     HAL_Delay(500);
+     //Stepper->Move(50*16, CCW);
+     Stepper->Move(Dial->CalculateSteps(CCW, 0, 50),CCW);
      while (Stepper->Status() == Running) {}
+     HAL_Delay(500);
 
     /* USER CODE END WHILE */
 
@@ -481,6 +487,20 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim){
    }
 }
 
+int num_to_steps(uint8_t full_turns, uint8_t current_number, uint8_t next_number){
+
+   int steps = full_turns * 200 * MICROSTEP; // Full revolutions
+   //steps = steps + number * 2 * MICROSTEP; // 200 full steps per revolution = 100 numbers on the dial
+   return steps;
+}
+
+/* I need a move_stepper function
+ * It should call Dial->CalculateSteps and send the result to Stepper.
+ * Then it waits for the move to complete and calls Dial->UpdatePosition.
+ * Once the Hall Effect sensor is working, then it should compare
+ * expected position to measured position before running Dial->UpdatePosition.
+ *
+ */
 
 /* USER CODE END 4 */
 

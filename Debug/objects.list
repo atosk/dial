@@ -1,3 +1,4 @@
+"Core/Inc/Dial.o"
 "Core/Inc/Stepper.o"
 "Core/Inc/Stepper_test.o"
 "Core/Src/main.o"

@@ -1,11 +1,12 @@
-main.cpp:104:5:int main()	8	static
-main.cpp:162:6:void SystemClock_Config()	120	static
-main.cpp:220:13:void MX_ETH_Init()	8	static
-main.cpp:266:13:void MX_TIM3_Init()	64	static
-main.cpp:325:13:void MX_USART3_UART_Init()	8	static
-main.cpp:373:13:void MX_USB_OTG_FS_PCD_Init()	8	static
-main.cpp:409:13:void MX_GPIO_Init()	56	static
-main.cpp:477:6:void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef*)	16	static
-main.cpp:491:6:void Error_Handler()	4	static,ignoring_inline_asm
-main.cpp:500:1:void __static_initialization_and_destruction_0(int, int)	24	static
-main.cpp:500:1:cpp)	8	static
+main.cpp:106:5:int main()	16	static
+main.cpp:168:6:void SystemClock_Config()	120	static
+main.cpp:226:13:void MX_ETH_Init()	8	static
+main.cpp:272:13:void MX_TIM3_Init()	64	static
+main.cpp:331:13:void MX_USART3_UART_Init()	8	static
+main.cpp:379:13:void MX_USB_OTG_FS_PCD_Init()	8	static
+main.cpp:415:13:void MX_GPIO_Init()	56	static
+main.cpp:483:6:void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef*)	16	static
+main.cpp:490:5:int num_to_steps(uint8_t, uint8_t, uint8_t)	24	static
+main.cpp:511:6:void Error_Handler()	4	static,ignoring_inline_asm
+main.cpp:520:1:void __static_initialization_and_destruction_0(int, int)	24	static
+main.cpp:520:1:cpp)	8	static
