@@ -95,8 +95,10 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-std::StepperMotor *Stepper = new std::StepperMotor(TIM3);;
+
+std::StepperMotor *Stepper = new std::StepperMotor(TIM3);
 std::Dial *Dial = new std::Dial();
+
 /* USER CODE END 0 */
 
 /**
@@ -148,17 +150,17 @@ int main(void)
   while (1)
   {
 
+     // Routine to demo stepper control
      Move_Stepper(dir, 0, newnum);
+
      if (newnum > 0){newnum -= 10;}
      else{
         newnum = 90;
         if (dir == CCW){
            dir = CW;
         } else (dir = CCW);
-
      }
-    // while (Stepper->Status() == Running) {}
-    // HAL_Delay(DELAY_MS);
+
 
     /* USER CODE END WHILE */
 
@@ -487,12 +489,14 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim){
+   // Interrupt service routine for TIMER3
+   // Counts pulses until the desired number have been sent
+   // Then it disables the timer to end the output.
    Stepper->UpdateStep();
    if (Stepper->MoveComplete()){
       Stepper->Stop();
    }
 }
-
 
 
 void Move_Stepper(enum Direction dir, int full_turns, int next_number){
@@ -509,8 +513,11 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number){
   *
   */
    Stepper->Move(Dial->CalculateSteps(dir, full_turns, next_number),dir);
-   while (Stepper->Status() == Running) {}
-   Dial->UpdatePosition(next_number);
+   while (Stepper->Status() == Running) {} // Wait for move to finish
+
+   // [TODO] Compare expected and measured positions here.
+
+   Dial->UpdatePosition(next_number); // Expected and measured are in agreement.
    HAL_Delay(DELAY_MS);
 }
 
