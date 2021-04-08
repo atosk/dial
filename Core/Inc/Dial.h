@@ -20,7 +20,7 @@ private:
 
 public:
    Dial(); // Constructor
-   int CalculateSteps(enum Direction direction, uint8_t full_turns, uint8_t next_number);
+   int CalculateSteps(enum Direction direction, int full_turns, int next_number);
    int GetPosition();
    void UpdatePosition(int new_position);
    ~Dial(); // Destructor

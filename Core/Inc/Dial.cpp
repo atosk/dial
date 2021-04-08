@@ -18,9 +18,9 @@ Dial::Dial() { // Constructor
 
 }
 
-int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, uint8_t next_number){
+int Dial::CalculateSteps(enum Direction direction, int full_turns, int next_number){
    m_next_number = next_number;
-   int m_dial_temp = next_number - m_dial_location; // Temporary location to collect arithmetic results
+   int m_dial_temp = 0; // Temporary location to collect arithmetic results
 
    /* Dial moving CCW means the numbers under the dial indicator are increasing.
     * CW means the numbers are decreasing.

@@ -90,7 +90,7 @@ static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
-int num_to_steps(uint8_t full_turns, uint8_t current_number, uint8_t next_number);
+void Move_Stepper(enum Direction dir, int full_turns, int next_number);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -143,16 +143,22 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
+  int newnum = 90;
+  enum Direction dir = CW;
   while (1)
   {
-     //Stepper->Move(50*16, CW);
-     Stepper->Move(Dial->CalculateSteps(CW, 0, 50),CW);
-     while (Stepper->Status() == Running) {}
-     HAL_Delay(500);
-     //Stepper->Move(50*16, CCW);
-     Stepper->Move(Dial->CalculateSteps(CCW, 0, 50),CCW);
-     while (Stepper->Status() == Running) {}
-     HAL_Delay(500);
+
+     Move_Stepper(dir, 0, newnum);
+     if (newnum > 0){newnum -= 10;}
+     else{
+        newnum = 90;
+        if (dir == CCW){
+           dir = CW;
+        } else (dir = CCW);
+
+     }
+    // while (Stepper->Status() == Running) {}
+    // HAL_Delay(DELAY_MS);
 
     /* USER CODE END WHILE */
 
@@ -487,20 +493,26 @@ void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef* htim){
    }
 }
 
-int num_to_steps(uint8_t full_turns, uint8_t current_number, uint8_t next_number){
 
-   int steps = full_turns * 200 * MICROSTEP; // Full revolutions
-   //steps = steps + number * 2 * MICROSTEP; // 200 full steps per revolution = 100 numbers on the dial
-   return steps;
+
+void Move_Stepper(enum Direction dir, int full_turns, int next_number){
+/** Function to move the stepper. Tell it the direction of rotation,
+  * the number of complete revolutions to add, and the final number to land on.
+  *
+  * This function calculates the number of steps required to reach the final
+  * position, sends the pulses, and waits for the stepper to finish moving.
+  *
+  * Then [TODO], it compares the position measured from the Hall Effect sensor to
+  * the position given by the move command. If they match, then the dial's position
+  * is updated. If they don't match, then we have an error or an open state.
+  *
+  *
+  */
+   Stepper->Move(Dial->CalculateSteps(dir, full_turns, next_number),dir);
+   while (Stepper->Status() == Running) {}
+   Dial->UpdatePosition(next_number);
+   HAL_Delay(DELAY_MS);
 }
-
-/* I need a move_stepper function
- * It should call Dial->CalculateSteps and send the result to Stepper.
- * Then it waits for the move to complete and calls Dial->UpdatePosition.
- * Once the Hall Effect sensor is working, then it should compare
- * expected position to measured position before running Dial->UpdatePosition.
- *
- */
 
 /* USER CODE END 4 */
 
@@ -508,7 +520,7 @@ int num_to_steps(uint8_t full_turns, uint8_t current_number, uint8_t next_number
   * @brief  This function is executed in case of error occurrence.
   * @retval None
   */
-void Error_Handler(void)
+ void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
   /* User can add his own implementation to report the HAL error return state */

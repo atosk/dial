@@ -12,7 +12,7 @@
 #define TRUE  1
 #define FALSE 0
 #define MICROSTEP 16 // Stepper driver's microstep mode
-#define DELAY_MS 200    // Step pulse train is disabled for this long before reversing the stepper's direction.
+#define DELAY_MS 500 // Pause this long after each stepper move
 //#define PWM_PERIOD_US 156 // Fast! Two full rotations per second with 16 stepping
 #define PWM_PERIOD_US   600 // Slow for my human eyes.
 #define PWM_PULSE_WIDTH_US 10 // Pulse width for PWM
