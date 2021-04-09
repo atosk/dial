@@ -60,6 +60,11 @@ StepperStatus StepperMotor::Status(void){
 
 
 void StepperMotor::ChangePeriod(uint16_t period_ms) {
+   /* This function changes the overflow period of the
+    * running timer. Used for acceleration/deceleration.
+    *
+    * Called by ISR so the counter will be zero
+    */
    m_TIMx->CR1 &= ~(TIM_CR1_CEN); // Disable timer
    m_TIMx->ARR = period_ms;       // Change the timer period
    m_TIMx->CR1 |= TIM_CR1_CEN;    // Enable the timer

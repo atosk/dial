@@ -71,6 +71,8 @@ ETH_TxPacketConfig TxConfig;
 
 ETH_HandleTypeDef heth;
 
+I2C_HandleTypeDef hi2c2;
+
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart3;
@@ -88,8 +90,11 @@ static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_I2C2_Init(void);
 /* USER CODE BEGIN PFP */
 void Move_Stepper(enum Direction dir, int full_turns, int next_number);
+void Stop_TIM3(TIM_TypeDef *TIMx);
+void Start_TIM3(TIM_TypeDef *TIMx);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -131,17 +136,26 @@ int main(void) {
    MX_USART3_UART_Init();
    MX_USB_OTG_FS_PCD_Init();
    MX_TIM3_Init();
+   MX_I2C2_Init();
    /* USER CODE BEGIN 2 */
 
+   // Timer3 startup
    HAL_TIM_PWM_Start_IT(&htim3, TIM_CHANNEL_3);
-   TIM3->CR1 &= ~(TIM_CR1_CEN);
+   TIM3->CR1 &= ~(TIM_CR1_CEN); // Disable counter
+
+   // Stepper
+   int newnum = 90; // Next number to spin the dial to
+   enum Direction dir = CW; // Direction of dial rotation.
+
+   // Encoder
+   uint8_t i2c_receive_buf[2]; // Position data is 12 bits and requires two reads.
+   uint16_t encoder_angle = 0; //
 
    /* USER CODE END 2 */
 
    /* Infinite loop */
    /* USER CODE BEGIN WHILE */
-   int newnum = 90;
-   enum Direction dir = CW;
+
    while (1) {
 
       // Routine to demo stepper control
@@ -262,6 +276,49 @@ static void MX_ETH_Init(void) {
    /* USER CODE BEGIN ETH_Init 2 */
 
    /* USER CODE END ETH_Init 2 */
+
+}
+
+/**
+ * @brief I2C2 Initialization Function
+ * @param None
+ * @retval None
+ */
+static void MX_I2C2_Init(void) {
+
+   /* USER CODE BEGIN I2C2_Init 0 */
+
+   /* USER CODE END I2C2_Init 0 */
+
+   /* USER CODE BEGIN I2C2_Init 1 */
+
+   /* USER CODE END I2C2_Init 1 */
+   hi2c2.Instance = I2C2;
+   hi2c2.Init.Timing = 0x00602173;
+   hi2c2.Init.OwnAddress1 = 0;
+   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+   hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+   hi2c2.Init.OwnAddress2 = 0;
+   hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+   hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+   hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+   if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
+      Error_Handler();
+   }
+   /** Configure Analogue filter
+    */
+   if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE)
+         != HAL_OK) {
+      Error_Handler();
+   }
+   /** Configure Digital filter
+    */
+   if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK) {
+      Error_Handler();
+   }
+   /* USER CODE BEGIN I2C2_Init 2 */
+
+   /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -408,6 +465,7 @@ static void MX_GPIO_Init(void) {
 
    /* GPIO Ports Clock Enable */
    __HAL_RCC_GPIOC_CLK_ENABLE();
+   __HAL_RCC_GPIOF_CLK_ENABLE();
    __HAL_RCC_GPIOH_CLK_ENABLE();
    __HAL_RCC_GPIOA_CLK_ENABLE();
    __HAL_RCC_GPIOB_CLK_ENABLE();
@@ -471,14 +529,32 @@ static void MX_GPIO_Init(void) {
 }
 
 /* USER CODE BEGIN 4 */
+
+void Stop_Timer(TIM_TypeDef *TIMx){
+   TIMx->CR1 &= ~(TIM_CR1_CEN) ;
+}
+void Start_Timer(TIM_TypeDef *TIMx){
+   TIMx->CR1 |= TIM_CR1_CEN;
+}
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
    // Interrupt service routine for TIMER3
    // Counts pulses until the desired number have been sent
    // Then it disables the timer to end the output.
+
+   // !! Only works now because TIM3 is the only PWM timer.
+   // !! The complete solution is to check TIM status bits to see
+   // !! who issued the interrupt.
+
+   Stop_Timer(TIM3); // Freeze counter at zero
+
    Stepper->UpdateStep();
    if (Stepper->MoveComplete()) {
       Stepper->Stop();
+   } else {
+      // TODO acceleration stuff here
+      Start_Timer(TIM3); // Keep counting
    }
+
 }
 
 void Move_Stepper(enum Direction dir, int full_turns, int next_number) {
@@ -488,20 +564,19 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number) {
     * This function calculates the number of steps required to reach the final
     * position, sends the pulses, and waits for the stepper to finish moving.
     *
-    * Then [TODO], it compares the position measured from the Hall Effect sensor to
+    * Then it compares the position measured from the Hall Effect sensor to
     * the position given by the move command. If they match, then the dial's position
     * is updated. If they don't match, then we have an error or an open state.
-    *
-    *
     */
+
    Stepper->Move(Dial->CalculateSteps(dir, full_turns, next_number), dir);
-   while (Stepper->Status() == Running) {
-   } // Wait for move to finish
+   while (Stepper->Status() == Running) {} // Wait for move to finish
+   HAL_Delay(DELAY_MS); // Brief delay after move to allow mechanical settling.
 
    // [TODO] Compare expected and measured positions here.
 
    Dial->UpdatePosition(next_number); // Expected and measured are in agreement.
-   HAL_Delay(DELAY_MS);
+
 }
 
 /* USER CODE END 4 */

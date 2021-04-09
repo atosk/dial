@@ -21,7 +21,7 @@ private:
 public:
    Dial(); // Constructor
    int CalculateSteps(enum Direction, uint8_t, uint8_t);
-   int GetPosition();
+   uint8_t GetPosition();
    void UpdatePosition(uint8_t);
    ~Dial(); // Destructor
 };

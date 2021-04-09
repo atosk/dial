@@ -38,7 +38,6 @@ int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, uint8_t n
 
    // Calculate the number of pulses to send with the next stepper move command.
    return ((full_turns + m_dial_temp) * 2 * MICROSTEP);
-
 }
 
 void Dial::UpdatePosition(uint8_t new_position){
@@ -46,7 +45,7 @@ void Dial::UpdatePosition(uint8_t new_position){
 }
 
 
-int Dial::GetPosition(){
+uint8_t Dial::GetPosition(){
    return m_dial_location;
 }
 
