@@ -15,14 +15,14 @@ namespace std {
 
 class Dial {
 private:
+   uint8_t m_dial_location = 0;
    uint8_t m_next_number = 0;
-   int m_dial_location = 0;
 
 public:
    Dial(); // Constructor
-   int CalculateSteps(enum Direction direction, int full_turns, int next_number);
+   int CalculateSteps(enum Direction, uint8_t, uint8_t);
    int GetPosition();
-   void UpdatePosition(int new_position);
+   void UpdatePosition(uint8_t);
    ~Dial(); // Destructor
 };
 

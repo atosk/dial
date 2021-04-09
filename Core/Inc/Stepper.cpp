@@ -60,9 +60,9 @@ StepperStatus StepperMotor::Status(void){
 
 
 void StepperMotor::ChangePeriod(uint16_t period_ms) {
-   m_TIMx->CR1 &= ~(TIM_CR1_CEN);
-   m_TIMx->ARR = period_ms;
-   m_TIMx->CR1 |= TIM_CR1_CEN;
+   m_TIMx->CR1 &= ~(TIM_CR1_CEN); // Disable timer
+   m_TIMx->ARR = period_ms;       // Change the timer period
+   m_TIMx->CR1 |= TIM_CR1_CEN;    // Enable the timer
 
 }
 

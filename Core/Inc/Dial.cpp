@@ -11,14 +11,10 @@
 namespace std {
 
 
-Dial::Dial() { // Constructor
+Dial::Dial() : m_dial_location (0), m_next_number(0) {} // Constructor
 
-   m_dial_location = 0;
-   m_next_number = 0;
 
-}
-
-int Dial::CalculateSteps(enum Direction direction, int full_turns, int next_number){
+int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, uint8_t next_number){
    m_next_number = next_number;
    int m_dial_temp = 0; // Temporary location to collect dial displacement
 
@@ -45,7 +41,7 @@ int Dial::CalculateSteps(enum Direction direction, int full_turns, int next_numb
 
 }
 
-void Dial::UpdatePosition(int new_position){
+void Dial::UpdatePosition(uint8_t new_position){
    m_dial_location = new_position;
 }
 

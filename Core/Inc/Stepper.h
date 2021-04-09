@@ -21,12 +21,12 @@ private:
 
 
 public:
-   StepperMotor(TIM_TypeDef *TIMx);
+   StepperMotor(TIM_TypeDef*);
    void UpdateStep(void);
    void Stop(void);
-   void Move(int steps, enum Direction dir);
+   void Move(int, enum Direction);
    StepperStatus Status(void);
-   void ChangePeriod(uint16_t period_ms);
+   void ChangePeriod(uint16_t);
    uint8_t MoveComplete(void);
    ~StepperMotor();
 };
