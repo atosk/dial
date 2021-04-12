@@ -27,6 +27,8 @@
 #include "Stepper.h"
 #include "my_definitions.h"
 #include "Dial.h"
+#include <string>
+#include <cstdio>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,6 +38,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+#define DEBUG 1
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -95,6 +98,8 @@ static void MX_I2C2_Init(void);
 void Move_Stepper(enum Direction dir, int full_turns, int next_number);
 void Stop_TIM3(TIM_TypeDef *TIMx);
 void Start_TIM3(TIM_TypeDef *TIMx);
+
+
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -143,6 +148,13 @@ int main(void) {
    HAL_TIM_PWM_Start_IT(&htim3, TIM_CHANNEL_3);
    TIM3->CR1 &= ~(TIM_CR1_CEN); // Disable counter
 
+   // Control flow flags
+   int move = 0;
+   int test_i2c = 1;
+
+   // Character buffers
+   char msg[100] = { 0 };
+
    // Stepper
    int newnum = 90; // Next number to spin the dial to
    enum Direction dir = CW; // Direction of dial rotation.
@@ -151,6 +163,11 @@ int main(void) {
    uint8_t i2c_receive_buf[2]; // Position data is 12 bits and requires two reads.
    uint16_t encoder_angle = 0; //
 
+#if DEBUG ==1
+   uint8_t start_message[] = "\r\n\r\n..... Running .....\r\n";
+   HAL_UART_Transmit(&huart3, start_message, sizeof(start_message), 10);
+#endif
+
    /* USER CODE END 2 */
 
    /* Infinite loop */
@@ -158,23 +175,71 @@ int main(void) {
 
    while (1) {
 
-      // Routine to demo stepper control
-      Move_Stepper(dir, 0, newnum);
+// -------------------------------------------------------------------
+      if (test_i2c == 1) {
 
-      if (newnum > 0) {
-         newnum -= 10;
-      } else {
-         newnum = 90;
-         if (dir == CCW) {
-            dir = CW;
-         } else
-            (dir = CCW);
+         // Read status register 0x0B from device 0x36. Result is one byte.
+         // Then print result across UART. This tests i2c functionality and hall sensor placement.
+         /* STATUS: [XX000XXX] (X = Don't care, 0 = Do care.)
+          * 000 = No magnet detected
+          * 101 = Magnet too strong
+          * 110 = Magnet too weak
+          * 100 = Magnet OK
+          *
+          */
+         while (1) {
+
+            // Read Status register
+            HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_STATUS, 1,
+                  i2c_receive_buf, 1, 200);
+            char reg_status = (i2c_receive_buf[0] & 0b00111000); // Mask off unimportant  bits
+            int ret;
+            switch (reg_status) {
+               case 0:
+                  ret = sprintf(msg, "No magnet detected.\r\n");
+                  break;
+               case 40:
+                  ret = sprintf(msg, "Magnet too Strong.\r\n");
+                  break;
+               case 48:
+                  ret = sprintf(msg, "Magnet too weak.\r\n");
+                  break;
+               case 32:
+                  ret = sprintf(msg, "Magnet OK!\r\n");
+                  break;
+               default:
+                  ret = sprintf(msg, "Error\r\n");
+                  break;
+
+            }
+            // Serial print the result
+            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+            HAL_Delay(500);
+         }
+
       }
+
+// -------------------------------------------------------------------
+      if (move == 1) {
+         // Routine to demo stepper control
+         Move_Stepper(dir, 0, newnum);
+
+         if (newnum > 0) {
+            newnum -= 10;
+         } else {
+            newnum = 90;
+            if (dir == CCW) {
+               dir = CW;
+            } else
+               (dir = CCW);
+         }
+      } // End if move == 1
 
       /* USER CODE END WHILE */
 
       /* USER CODE BEGIN 3 */
-   }
+   } // End main loop
+
    /* USER CODE END 3 */
 }
 
@@ -294,7 +359,7 @@ static void MX_I2C2_Init(void) {
 
    /* USER CODE END I2C2_Init 1 */
    hi2c2.Instance = I2C2;
-   hi2c2.Init.Timing = 0x00602173;
+   hi2c2.Init.Timing = 0x10707DBC;
    hi2c2.Init.OwnAddress1 = 0;
    hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
    hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -530,10 +595,10 @@ static void MX_GPIO_Init(void) {
 
 /* USER CODE BEGIN 4 */
 
-void Stop_Timer(TIM_TypeDef *TIMx){
-   TIMx->CR1 &= ~(TIM_CR1_CEN) ;
+void Stop_Timer(TIM_TypeDef *TIMx) {
+   TIMx->CR1 &= ~(TIM_CR1_CEN);
 }
-void Start_Timer(TIM_TypeDef *TIMx){
+void Start_Timer(TIM_TypeDef *TIMx) {
    TIMx->CR1 |= TIM_CR1_CEN;
 }
 void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
@@ -570,7 +635,8 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number) {
     */
 
    Stepper->Move(Dial->CalculateSteps(dir, full_turns, next_number), dir);
-   while (Stepper->Status() == Running) {} // Wait for move to finish
+   while (Stepper->Status() == Running) {
+   } // Wait for move to finish
    HAL_Delay(DELAY_MS); // Brief delay after move to allow mechanical settling.
 
    // [TODO] Compare expected and measured positions here.

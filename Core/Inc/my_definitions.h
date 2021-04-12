@@ -23,7 +23,12 @@
 #define PWM_PULSE_WIDTH_US 10 // Pulse width for PWM
 
 // AS5600 Hall Effect sensor constants
-#define I2C_ENCODER_ADDRESS 0x36
+#define AS5600_ADDR 0x36 << 1
+#define AS5600_REG_ANGLE_H 0x0E
+#define AS5600_REG_ANGLE_L 0x0F
+#define AS5600_REG_STATUS 0x0B
+#define AS5600_REG_CONF_H 0x07
+#define AS5600_REG_CONF_L 0x08
 #define ENCODER_DEGREES_PER_BIT 0.087890625
 
 // Enumerations
