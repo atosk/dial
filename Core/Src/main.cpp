@@ -160,12 +160,13 @@ int main(void) {
    enum Direction dir = CW; // Direction of dial rotation.
 
    // Encoder
-   uint8_t i2c_receive_buf[2]; // Position data is 12 bits and requires two reads.
+   uint8_t i2c_receive_buf[2]={0}; // Position data is 12 bits and requires two reads.
    uint16_t encoder_angle = 0; //
 
 #if DEBUG ==1
    uint8_t start_message[] = "\r\n\r\n..... Running .....\r\n";
    HAL_UART_Transmit(&huart3, start_message, sizeof(start_message), 10);
+   int conf_flag = 0;
 #endif
 
    /* USER CODE END 2 */
@@ -187,8 +188,13 @@ int main(void) {
           * 100 = Magnet OK
           *
           */
+//#define STATUS_REG
+//#define ANGLE_REG
+#define CONF_REG
          while (1) {
 
+
+#ifdef STAUS_REG
             // Read Status register
             HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_STATUS, 1,
                   i2c_receive_buf, 1, 200);
@@ -215,6 +221,70 @@ int main(void) {
             // Serial print the result
             HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
             HAL_Delay(500);
+#endif
+#ifdef ANGLE_REG
+            // Read Angle Register
+            // Two bytes.
+            // AngleH addr: 0x0E
+            // AngleL addr: 0x0F
+
+            // Read two bytes starting at the ANGLE_H address.
+            // Result: buff[1] = low byte, buff[0] = high byte
+            HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_ANGLE_H, 1,i2c_receive_buf, 2, 200);
+            int angle = (i2c_receive_buf[0] << 8) | i2c_receive_buf[1]; // Concatenate the two bytes
+
+            sprintf(msg, "Angle: 0x%04X\r\n",angle);
+            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+
+            HAL_Delay(500);
+
+#endif
+#ifdef CONF_REG
+
+            // Read CONF Register
+            // Reg is two bytes, but only the low one is useful for this application
+
+
+            // ============================= Read ==========================================
+            if (HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_16BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
+               sprintf(msg, "Read error\r\n");
+               HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+            }
+            sprintf(msg, "Startup values.  Conf_H: %02X  Conf_L %02X\r\n",i2c_receive_buf[0], i2c_receive_buf[1]);
+            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+
+            HAL_Delay(0.01);
+
+
+            // ============================= Write ===========================================
+            uint8_t conf_write[2] = {0};
+            conf_write[0] = i2c_receive_buf[0]; // CONF_H
+            conf_write[1] = i2c_receive_buf[1] | (1 << 2); // CONF_L Turn on 1LSB Hysteresis.
+            if (HAL_I2C_Mem_Write(&hi2c2, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_16BIT, conf_write, 2, 200) != HAL_OK){
+                           sprintf(msg, "Write error\r\n");
+                           HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+                        }
+
+
+
+            // ============================= Read ==========================================
+
+            if (HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_16BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
+               sprintf(msg, "Read error\r\n");
+               HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+            }
+
+
+            HAL_Delay(0.01);
+
+            sprintf(msg, "Modified values. Conf_H: %02X  Conf_L %02X\r\n",i2c_receive_buf[0], i2c_receive_buf[1]);
+            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+
+            while(1);
+
+#endif
+
+
          }
 
       }
