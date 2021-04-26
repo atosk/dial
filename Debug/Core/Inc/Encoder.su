@@ -1,4 +1,4 @@
-Encoder.cpp:14:1:std::Encoder::Encoder(I2C_HandleTypeDef, int)	48	static
-Encoder.cpp:70:17:I2C_Status std::Encoder::GetStatus()	16	static
-Encoder.cpp:74:5:int std::Encoder::GetAngle()	32	static
-Encoder.cpp:83:1:std::Encoder::~Encoder()	16	static
+Encoder.cpp:14:1:std::Encoder::Encoder(I2C_HandleTypeDef*, int)	48	static
+Encoder.cpp:80:17:I2C_Status std::Encoder::GetStatus()	16	static
+Encoder.cpp:84:7:float std::Encoder::GetLocation()	32	static
+Encoder.cpp:107:1:std::Encoder::~Encoder()	16	static
