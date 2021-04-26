@@ -29,8 +29,8 @@
 #define AS5600_REG_STATUS 0x0B
 #define AS5600_REG_CONF_H 0x07
 #define AS5600_REG_CONF_L 0x08
-//#define ENCODER_DEGREES_PER_BIT 0.087890625 // Hysteresis off. Full resolution.
-#define ENCODER_DEGREES_PER_BIT 0.17578125 // Hysteresis 1 LSB. 11-bit resolution.
+#define ENCODER_DEGREES_PER_BIT 0.087890625 // Hysteresis off. Full resolution.
+//#define ENCODER_DEGREES_PER_BIT 0.17578125 // Hysteresis 1 LSB. 11-bit resolution.
 
 // Enumerations
 enum Direction {CW=0, CCW=1};

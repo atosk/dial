@@ -27,7 +27,7 @@
 #include "Stepper.h"
 #include "my_definitions.h"
 #include "Dial.h"
-#include <string>
+#include "Encoder.h"
 #include <cstdio>
 /* USER CODE END Includes */
 
@@ -74,7 +74,7 @@ ETH_TxPacketConfig TxConfig;
 
 ETH_HandleTypeDef heth;
 
-I2C_HandleTypeDef hi2c2;
+I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim3;
 
@@ -93,12 +93,11 @@ static void MX_ETH_Init(void);
 static void MX_USART3_UART_Init(void);
 static void MX_USB_OTG_FS_PCD_Init(void);
 static void MX_TIM3_Init(void);
-static void MX_I2C2_Init(void);
+static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
 void Move_Stepper(enum Direction dir, int full_turns, int next_number);
 void Stop_TIM3(TIM_TypeDef *TIMx);
 void Start_TIM3(TIM_TypeDef *TIMx);
-
 
 /* USER CODE END PFP */
 
@@ -107,6 +106,7 @@ void Start_TIM3(TIM_TypeDef *TIMx);
 
 std::StepperMotor *Stepper = new std::StepperMotor(TIM3);
 std::Dial *Dial = new std::Dial();
+std::Encoder *Encoder;
 
 /* USER CODE END 0 */
 
@@ -141,7 +141,7 @@ int main(void) {
    MX_USART3_UART_Init();
    MX_USB_OTG_FS_PCD_Init();
    MX_TIM3_Init();
-   MX_I2C2_Init();
+   MX_I2C1_Init();
    /* USER CODE BEGIN 2 */
 
    // Timer3 startup
@@ -160,13 +160,15 @@ int main(void) {
    enum Direction dir = CW; // Direction of dial rotation.
 
    // Encoder
-   uint8_t i2c_receive_buf[2]={0}; // Position data is 12 bits and requires two reads.
-   uint16_t encoder_angle = 0; //
+   Encoder = new std::Encoder(&hi2c1, AS5600_HYSTERESIS_1LSB);
+   uint8_t i2c_receive_buf[2] = { 0 }; // Position data is 12 bits and requires two reads.
+   uint8_t i2c_write_buf[2] = { 0 };
+   //uint16_t encoder_location = 0; //
+   float encoder_location = 0;
 
 #if DEBUG ==1
    uint8_t start_message[] = "\r\n\r\n..... Running .....\r\n";
    HAL_UART_Transmit(&huart3, start_message, sizeof(start_message), 10);
-   int conf_flag = 0;
 #endif
 
    /* USER CODE END 2 */
@@ -190,34 +192,53 @@ int main(void) {
           */
 //#define STATUS_REG
 //#define ANGLE_REG
-#define CONF_REG
+//#define CONF_REG
+#define GET_ANGLE
+
+         enum I2C_Status ret;
          while (1) {
 
 
-#ifdef STAUS_REG
+#ifdef GET_ANGLE
+            encoder_location = Encoder->GetLocation();
+            // Split floating point into two integers. Fraction gets rounded to nearest tenth.
+            // Ex: 123.5134 becomes two variables, 123 and 5
+            float tmpFrac = encoder_location - (int)encoder_location; // Get fraction
+            int encoder_fraction = round(tmpFrac * 100)/10;  // Turn into integer, rounded to nearest 10th
+            sprintf(msg, "Encoder Location: %d.%01d\r\n", (int)encoder_location,encoder_fraction);
+
+            // Serial print the result
+            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
+            HAL_Delay(500);
+
+#endif
+
+#ifdef STATUS_REG
             // Read Status register
-            HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_STATUS, 1,
-                  i2c_receive_buf, 1, 200);
+            if (HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_STATUS, I2C_MEMADD_SIZE_8BIT,
+                  i2c_receive_buf, 1, 200) != HAL_OK){
+               Error_Handler();
+            }
             char reg_status = (i2c_receive_buf[0] & 0b00111000); // Mask off unimportant  bits
-            int ret;
             switch (reg_status) {
                case 0:
-                  ret = sprintf(msg, "No magnet detected.\r\n");
+                  sprintf(msg, "No magnet detected.\r\n");
                   break;
                case 40:
-                  ret = sprintf(msg, "Magnet too Strong.\r\n");
+                  sprintf(msg, "Magnet too Strong.\r\n");
                   break;
                case 48:
-                  ret = sprintf(msg, "Magnet too weak.\r\n");
+                  sprintf(msg, "Magnet too weak.\r\n");
                   break;
                case 32:
-                  ret = sprintf(msg, "Magnet OK!\r\n");
+                  sprintf(msg, "Magnet OK!\r\n");
                   break;
                default:
-                  ret = sprintf(msg, "Error\r\n");
+                  sprintf(msg, "Error\r\n");
                   break;
 
             }
+
             // Serial print the result
             HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
             HAL_Delay(500);
@@ -230,7 +251,7 @@ int main(void) {
 
             // Read two bytes starting at the ANGLE_H address.
             // Result: buff[1] = low byte, buff[0] = high byte
-            HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_ANGLE_H, 1,i2c_receive_buf, 2, 200);
+            HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_ANGLE_H, I2C_MEMADD_SIZE_8BIT,i2c_receive_buf, 2, 200);
             int angle = (i2c_receive_buf[0] << 8) | i2c_receive_buf[1]; // Concatenate the two bytes
 
             sprintf(msg, "Angle: 0x%04X\r\n",angle);
@@ -246,7 +267,7 @@ int main(void) {
 
 
             // ============================= Read ==========================================
-            if (HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_16BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
+            if (HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_8BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
                sprintf(msg, "Read error\r\n");
                HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
             }
@@ -260,7 +281,7 @@ int main(void) {
             uint8_t conf_write[2] = {0};
             conf_write[0] = i2c_receive_buf[0]; // CONF_H
             conf_write[1] = i2c_receive_buf[1] | (1 << 2); // CONF_L Turn on 1LSB Hysteresis.
-            if (HAL_I2C_Mem_Write(&hi2c2, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_16BIT, conf_write, 2, 200) != HAL_OK){
+            if (HAL_I2C_Mem_Write(&hi2c1, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_8BIT, conf_write, 2, 200) != HAL_OK){
                            sprintf(msg, "Write error\r\n");
                            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
                         }
@@ -269,7 +290,7 @@ int main(void) {
 
             // ============================= Read ==========================================
 
-            if (HAL_I2C_Mem_Read(&hi2c2, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_16BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
+            if (HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_8BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
                sprintf(msg, "Read error\r\n");
                HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
             }
@@ -283,7 +304,6 @@ int main(void) {
             while(1);
 
 #endif
-
 
          }
 
@@ -415,45 +435,45 @@ static void MX_ETH_Init(void) {
 }
 
 /**
- * @brief I2C2 Initialization Function
+ * @brief I2C1 Initialization Function
  * @param None
  * @retval None
  */
-static void MX_I2C2_Init(void) {
+static void MX_I2C1_Init(void) {
 
-   /* USER CODE BEGIN I2C2_Init 0 */
+   /* USER CODE BEGIN I2C1_Init 0 */
 
-   /* USER CODE END I2C2_Init 0 */
+   /* USER CODE END I2C1_Init 0 */
 
-   /* USER CODE BEGIN I2C2_Init 1 */
+   /* USER CODE BEGIN I2C1_Init 1 */
 
-   /* USER CODE END I2C2_Init 1 */
-   hi2c2.Instance = I2C2;
-   hi2c2.Init.Timing = 0x10707DBC;
-   hi2c2.Init.OwnAddress1 = 0;
-   hi2c2.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
-   hi2c2.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
-   hi2c2.Init.OwnAddress2 = 0;
-   hi2c2.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
-   hi2c2.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
-   hi2c2.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
-   if (HAL_I2C_Init(&hi2c2) != HAL_OK) {
+   /* USER CODE END I2C1_Init 1 */
+   hi2c1.Instance = I2C1;
+   hi2c1.Init.Timing = 0x10707DBC;
+   hi2c1.Init.OwnAddress1 = 0;
+   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
+   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
+   hi2c1.Init.OwnAddress2 = 0;
+   hi2c1.Init.OwnAddress2Masks = I2C_OA2_NOMASK;
+   hi2c1.Init.GeneralCallMode = I2C_GENERALCALL_DISABLE;
+   hi2c1.Init.NoStretchMode = I2C_NOSTRETCH_DISABLE;
+   if (HAL_I2C_Init(&hi2c1) != HAL_OK) {
       Error_Handler();
    }
    /** Configure Analogue filter
     */
-   if (HAL_I2CEx_ConfigAnalogFilter(&hi2c2, I2C_ANALOGFILTER_ENABLE)
+   if (HAL_I2CEx_ConfigAnalogFilter(&hi2c1, I2C_ANALOGFILTER_ENABLE)
          != HAL_OK) {
       Error_Handler();
    }
    /** Configure Digital filter
     */
-   if (HAL_I2CEx_ConfigDigitalFilter(&hi2c2, 0) != HAL_OK) {
+   if (HAL_I2CEx_ConfigDigitalFilter(&hi2c1, 0) != HAL_OK) {
       Error_Handler();
    }
-   /* USER CODE BEGIN I2C2_Init 2 */
+   /* USER CODE BEGIN I2C1_Init 2 */
 
-   /* USER CODE END I2C2_Init 2 */
+   /* USER CODE END I2C1_Init 2 */
 
 }
 
@@ -600,7 +620,6 @@ static void MX_GPIO_Init(void) {
 
    /* GPIO Ports Clock Enable */
    __HAL_RCC_GPIOC_CLK_ENABLE();
-   __HAL_RCC_GPIOF_CLK_ENABLE();
    __HAL_RCC_GPIOH_CLK_ENABLE();
    __HAL_RCC_GPIOA_CLK_ENABLE();
    __HAL_RCC_GPIOB_CLK_ENABLE();

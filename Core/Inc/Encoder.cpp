@@ -11,11 +11,11 @@
 
 namespace std {
 
-Encoder::Encoder(I2C_HandleTypeDef HI2Cx, int hyst_mode) {
+Encoder::Encoder(I2C_HandleTypeDef *HI2Cx, int hyst_mode) {
    m_hi2cx = HI2Cx;
 
    // Read magnet status
-   if (HAL_I2C_Mem_Read(&m_hi2cx, AS5600_ADDR, AS5600_REG_STATUS,
+   if (HAL_I2C_Mem_Read(m_hi2cx, AS5600_ADDR, AS5600_REG_STATUS,
          I2C_MEMADD_SIZE_8BIT, m_i2c_receive_buf, 1, 200) != HAL_OK) {
       m_status = Read_Error;
    } else m_status = Ready;
@@ -48,22 +48,32 @@ Encoder::Encoder(I2C_HandleTypeDef HI2Cx, int hyst_mode) {
       }
    } // End status parse
 
-   // Write to configuration Register
+/* Write configuration register to set LSB Hysteresis
+ * Currently off to simply testing.
+ *
+   //Write to configuration Register
    if (m_status == Ready) {
 
       uint8_t i2c_write_buf[2] = { 0 };
       i2c_write_buf[1] = hyst_mode;
 
-      if (HAL_I2C_Mem_Write(&m_hi2cx, AS5600_ADDR, AS5600_REG_CONF_H,
-      I2C_MEMADD_SIZE_16BIT, i2c_write_buf, 2, 200) != HAL_OK) {
+      if (HAL_I2C_Mem_Write(m_hi2cx, AS5600_ADDR, AS5600_REG_CONF_H,
+      I2C_MEMADD_SIZE_8BIT, i2c_write_buf, 2, 200) != HAL_OK) {
          m_status = Write_Error;
       }
    } // End configuration write
+*/
 
-   // tare starting angle.
+   // record starting angle.
    if (m_status == Ready) {
-      int starting_angle = Encoder::GetAngle();
-   } // End tare angle
+      // Get contents of angle register without converting to degrees.
+      // This is to limit rounding error
+      if (HAL_I2C_Mem_Read(m_hi2cx, AS5600_ADDR, AS5600_REG_ANGLE_H, I2C_MEMADD_SIZE_8BIT, m_i2c_receive_buf, 2, 200) != HAL_OK){
+            Error_Handler();
+         }
+      m_starting_angle = (m_i2c_receive_buf[0] << 8) | m_i2c_receive_buf[1]; // Concatenate the two bytes
+
+   } // End starting angle
 
 } // End constructor
 
@@ -71,13 +81,27 @@ enum I2C_Status Encoder::GetStatus(){
    return m_status;
 }
 
-int Encoder::GetAngle(){
-   if (HAL_I2C_Mem_Read(&m_hi2cx, AS5600_ADDR, AS5600_REG_ANGLE_H, 1,m_i2c_receive_buf, 2, 200) != HAL_OK){
+float Encoder::GetLocation() {
+   // Read angle register
+   if (HAL_I2C_Mem_Read(m_hi2cx, AS5600_ADDR, AS5600_REG_ANGLE_H,
+         I2C_MEMADD_SIZE_8BIT, m_i2c_receive_buf, 2, 200) != HAL_OK) {
       m_angle = -1;
       m_status = Read_Error;
+   } else {
+      m_angle = (m_i2c_receive_buf[0] << 8) | m_i2c_receive_buf[1]; // Concatenate the two bytes
    }
-   m_angle = (m_i2c_receive_buf[0] << 8) | m_i2c_receive_buf[1]; // Concatenate the two bytes
-   return m_angle;
+
+   // Subtract starting angle and then convert to degrees.
+   m_angle = (m_angle - m_starting_angle) * ENCODER_DEGREES_PER_BIT;
+
+   // Corrected angle can be negative if starting>new
+   if (m_angle < 0) {
+      m_angle += 360; // -60 degrees becomes +300 degrees
+   }
+
+   // Convert angle to number on face of the dial
+   // rounded to nearest tenth
+   return (float)(round(10*m_angle/3.6)/10);
 }
 
 Encoder::~Encoder() {
