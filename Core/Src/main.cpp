@@ -148,9 +148,6 @@ int main(void) {
    HAL_TIM_PWM_Start_IT(&htim3, TIM_CHANNEL_3);
    TIM3->CR1 &= ~(TIM_CR1_CEN); // Disable counter
 
-   // Control flow flags
-   int move = 0;
-   int test_i2c = 1;
 
    // Character buffers
    char msg[100] = { 0 };
@@ -161,10 +158,6 @@ int main(void) {
 
    // Encoder
    Encoder = new std::Encoder(&hi2c1, AS5600_HYSTERESIS_1LSB);
-   uint8_t i2c_receive_buf[2] = { 0 }; // Position data is 12 bits and requires two reads.
-   uint8_t i2c_write_buf[2] = { 0 };
-   //uint16_t encoder_location = 0; //
-   float encoder_location = 0;
 
 #if DEBUG ==1
    uint8_t start_message[] = "\r\n\r\n..... Running .....\r\n";
@@ -179,151 +172,23 @@ int main(void) {
    while (1) {
 
 // -------------------------------------------------------------------
-      if (test_i2c == 1) {
-
-         // Read status register 0x0B from device 0x36. Result is one byte.
-         // Then print result across UART. This tests i2c functionality and hall sensor placement.
-         /* STATUS: [XX000XXX] (X = Don't care, 0 = Do care.)
-          * 000 = No magnet detected
-          * 101 = Magnet too strong
-          * 110 = Magnet too weak
-          * 100 = Magnet OK
-          *
-          */
-//#define STATUS_REG
-//#define ANGLE_REG
-//#define CONF_REG
-#define GET_ANGLE
-
-         enum I2C_Status ret;
-         while (1) {
 
 
-#ifdef GET_ANGLE
-            encoder_location = Encoder->GetLocation();
-            // Split floating point into two integers. Fraction gets rounded to nearest tenth.
-            // Ex: 123.5134 becomes two variables, 123 and 5
-            float tmpFrac = encoder_location - (int)encoder_location; // Get fraction
-            int encoder_fraction = round(tmpFrac * 100)/10;  // Turn into integer, rounded to nearest 10th
-            sprintf(msg, "Encoder Location: %d.%01d\r\n", (int)encoder_location,encoder_fraction);
-
-            // Serial print the result
-            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-            HAL_Delay(500);
-
-#endif
-
-#ifdef STATUS_REG
-            // Read Status register
-            if (HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_STATUS, I2C_MEMADD_SIZE_8BIT,
-                  i2c_receive_buf, 1, 200) != HAL_OK){
-               Error_Handler();
-            }
-            char reg_status = (i2c_receive_buf[0] & 0b00111000); // Mask off unimportant  bits
-            switch (reg_status) {
-               case 0:
-                  sprintf(msg, "No magnet detected.\r\n");
-                  break;
-               case 40:
-                  sprintf(msg, "Magnet too Strong.\r\n");
-                  break;
-               case 48:
-                  sprintf(msg, "Magnet too weak.\r\n");
-                  break;
-               case 32:
-                  sprintf(msg, "Magnet OK!\r\n");
-                  break;
-               default:
-                  sprintf(msg, "Error\r\n");
-                  break;
-
-            }
-
-            // Serial print the result
-            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-            HAL_Delay(500);
-#endif
-#ifdef ANGLE_REG
-            // Read Angle Register
-            // Two bytes.
-            // AngleH addr: 0x0E
-            // AngleL addr: 0x0F
-
-            // Read two bytes starting at the ANGLE_H address.
-            // Result: buff[1] = low byte, buff[0] = high byte
-            HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_ANGLE_H, I2C_MEMADD_SIZE_8BIT,i2c_receive_buf, 2, 200);
-            int angle = (i2c_receive_buf[0] << 8) | i2c_receive_buf[1]; // Concatenate the two bytes
-
-            sprintf(msg, "Angle: 0x%04X\r\n",angle);
-            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-
-            HAL_Delay(500);
-
-#endif
-#ifdef CONF_REG
-
-            // Read CONF Register
-            // Reg is two bytes, but only the low one is useful for this application
-
-
-            // ============================= Read ==========================================
-            if (HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_8BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
-               sprintf(msg, "Read error\r\n");
-               HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-            }
-            sprintf(msg, "Startup values.  Conf_H: %02X  Conf_L %02X\r\n",i2c_receive_buf[0], i2c_receive_buf[1]);
-            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-
-            HAL_Delay(0.01);
-
-
-            // ============================= Write ===========================================
-            uint8_t conf_write[2] = {0};
-            conf_write[0] = i2c_receive_buf[0]; // CONF_H
-            conf_write[1] = i2c_receive_buf[1] | (1 << 2); // CONF_L Turn on 1LSB Hysteresis.
-            if (HAL_I2C_Mem_Write(&hi2c1, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_8BIT, conf_write, 2, 200) != HAL_OK){
-                           sprintf(msg, "Write error\r\n");
-                           HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-                        }
-
-
-
-            // ============================= Read ==========================================
-
-            if (HAL_I2C_Mem_Read(&hi2c1, AS5600_ADDR, AS5600_REG_CONF_H, I2C_MEMADD_SIZE_8BIT ,i2c_receive_buf, 2, 200) != HAL_OK){
-               sprintf(msg, "Read error\r\n");
-               HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-            }
-
-
-            HAL_Delay(0.01);
-
-            sprintf(msg, "Modified values. Conf_H: %02X  Conf_L %02X\r\n",i2c_receive_buf[0], i2c_receive_buf[1]);
-            HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
-
-            while(1);
-
-#endif
-
-         }
-
-      }
 
 // -------------------------------------------------------------------
-      if (move == 1) {
-         // Routine to demo stepper control
-         Move_Stepper(dir, 0, newnum);
 
-         if (newnum > 0) {
-            newnum -= 10;
-         } else {
-            newnum = 90;
-            if (dir == CCW) {
-               dir = CW;
-            } else
-               (dir = CCW);
-         }
-      } // End if move == 1
+      // Routine to demo stepper control
+      Move_Stepper(dir, 0, newnum);
+
+      if (newnum > 0) {
+         newnum -= 10;
+      } else {
+         newnum = 90;
+         if (dir == CCW) {
+            dir = CW;
+         } else
+            (dir = CCW);
+      }
 
       /* USER CODE END WHILE */
 
@@ -728,11 +593,28 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number) {
    } // Wait for move to finish
    HAL_Delay(DELAY_MS); // Brief delay after move to allow mechanical settling.
 
-   // [TODO] Compare expected and measured positions here.
+   // Get actual location from AS5600
+   float encoder_location = Encoder->GetLocation();
+   float position_error;
 
-   Dial->UpdatePosition(next_number); // Expected and measured are in agreement.
+   // Get difference between expected and actual locations
+   if ((next_number == 0) && (encoder_location > 50)) { // Error between 0 and 99.8 is only 0.2
+      position_error = 100 - encoder_location;
+   } else {
+      position_error = next_number - encoder_location;
+   }
+
+   // Update dial location.
+   if (abs(position_error) < 0.5) { // Expected and measured are in agreement.
+      Dial->UpdatePosition(encoder_location); // Record error so it doesn't snowball.
+   } else {
+      // TODO if testing for open, then do happy dance. Else error.
+      Error_Handler();
+   }
 
 }
+
+
 
 /* USER CODE END 4 */
 

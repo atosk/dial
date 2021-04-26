@@ -14,9 +14,9 @@ namespace std {
 Dial::Dial() : m_dial_location (0), m_next_number(0) {} // Constructor
 
 
-int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, uint8_t next_number){
+int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, float next_number){
    m_next_number = next_number;
-   int m_dial_temp = 0; // Temporary location to collect dial displacement
+   float m_dial_temp = 0; // Temporary location to collect dial displacement
 
    /* Dial moving CCW means the numbers under the dial indicator are increasing.
     * CW means the numbers are decreasing.
@@ -37,15 +37,17 @@ int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, uint8_t n
    if (m_dial_temp < 0){ m_dial_temp += 100;}
 
    // Calculate the number of pulses to send with the next stepper move command.
-   return ((full_turns + m_dial_temp) * 2 * MICROSTEP);
+
+   int foo = round((full_turns + m_dial_temp) * 2 * MICROSTEP);
+   return foo;
 }
 
-void Dial::UpdatePosition(uint8_t new_position){
+void Dial::UpdatePosition(float new_position){
    m_dial_location = new_position;
 }
 
 
-uint8_t Dial::GetPosition(){
+float Dial::GetPosition(){
    return m_dial_location;
 }
 
