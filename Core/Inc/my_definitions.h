@@ -15,11 +15,12 @@
 // Stepper constants
 #define MICROSTEP 16 // Stepper driver's microstep mode
 #define DELAY_MS 500 // Pause this long after each stepper move
-//#define PWM_PERIOD_US 156 // Fast! Two full rotations per second with 16 stepping
 #define DIAL_DEGREES_PER_TICK 3.6
 
 // Timer PWM constants
 #define PWM_PERIOD_US   600 // Slow for my human eyes.
+//#define PWM_PERIOD_US 156 // Fast! Two full rotations per second with 16 stepping
+//#define PWM_PERIOD_US 140 // Faster!!! Try to break it! 140 seems to about the shortest reliable period.
 #define PWM_PULSE_WIDTH_US 10 // Pulse width for PWM
 
 // AS5600 Hall Effect sensor constants

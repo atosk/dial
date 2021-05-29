@@ -2,7 +2,7 @@ Stepper.cpp:13:1:std::StepperMotor::StepperMotor(TIM_TypeDef*)	16	static
 Stepper.cpp:21:6:void std::StepperMotor::UpdateStep()	16	static
 Stepper.cpp:30:6:void std::StepperMotor::Stop()	16	static
 Stepper.cpp:38:6:void std::StepperMotor::Move(int, Direction)	32	static
-Stepper.cpp:57:15:StepperStatus std::StepperMotor::Status()	16	static
-Stepper.cpp:62:6:void std::StepperMotor::ChangePeriod(uint16_t)	16	static
-Stepper.cpp:74:9:uint8_t std::StepperMotor::MoveComplete()	16	static
-Stepper.cpp:79:1:std::StepperMotor::~StepperMotor()	16	static
+Stepper.cpp:59:15:StepperStatus std::StepperMotor::Status()	16	static
+Stepper.cpp:64:6:void std::StepperMotor::ChangePeriod(uint16_t)	16	static
+Stepper.cpp:76:9:uint8_t std::StepperMotor::MoveComplete()	16	static
+Stepper.cpp:81:1:std::StepperMotor::~StepperMotor()	16	static

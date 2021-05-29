@@ -39,6 +39,7 @@ int Dial::CalculateSteps(enum Direction direction, uint8_t full_turns, float nex
    // Calculate the number of pulses to send with the next stepper move command.
 
    int foo = round((full_turns + m_dial_temp) * 2 * MICROSTEP);
+   if (foo == 100){ foo = 0; } // Just for consistency.
    return foo;
 }
 

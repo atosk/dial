@@ -37,21 +37,23 @@ void StepperMotor::Stop(void) {
 
 void StepperMotor::Move(int steps, enum Direction dir) {
    // Writes the stepper direction bit and starts the timer for specified number of steps
-   m_steps_remaining = steps;
-   m_flag_move_complete = FALSE;
-   m_status = Running;
+   if (steps > 0){ // Moving zero steps sends the stepper into a black hole.
+      m_steps_remaining = steps;
+      m_flag_move_complete = FALSE;
+      m_status = Running;
 
-   // Set Stepper motor direction pin
-   GPIO_PinState direction;
-   if (dir == CW) {
-      direction = GPIO_PIN_SET;
-   } else
-      direction = GPIO_PIN_RESET;
-   HAL_GPIO_WritePin(DIR_Pin_GPIO_Port, DIR_Pin_Pin, direction);
+      // Set Stepper motor direction pin
+      GPIO_PinState direction;
+      if (dir == CW) {
+         direction = GPIO_PIN_SET;
+      } else
+         direction = GPIO_PIN_RESET;
+      HAL_GPIO_WritePin(DIR_Pin_GPIO_Port, DIR_Pin_Pin, direction);
 
-   // Reset the counter and enable counting.
-   m_TIMx->CNT = 0;
-   m_TIMx->CR1 |= TIM_CR1_CEN;
+      // Reset the counter and enable counting.
+      m_TIMx->CNT = 0;
+      m_TIMx->CR1 |= TIM_CR1_CEN;
+   }
 }
 
 StepperStatus StepperMotor::Status(void){

@@ -108,6 +108,10 @@ std::StepperMotor *Stepper = new std::StepperMotor(TIM3);
 std::Dial *Dial = new std::Dial();
 std::Encoder *Encoder;
 
+// Character buffers
+char msg[100] = { 0 };
+
+
 /* USER CODE END 0 */
 
 /**
@@ -149,8 +153,6 @@ int main(void) {
    TIM3->CR1 &= ~(TIM_CR1_CEN); // Disable counter
 
 
-   // Character buffers
-   char msg[100] = { 0 };
 
    // Stepper
    int newnum = 90; // Next number to spin the dial to
@@ -359,11 +361,13 @@ static void MX_TIM3_Init(void) {
 
    /* USER CODE BEGIN TIM3_Init 1 */
 
+// htim3.Init.Period = PWM_PERIOD_US;
+
    /* USER CODE END TIM3_Init 1 */
    htim3.Instance = TIM3;
    htim3.Init.Prescaler = 63;
    htim3.Init.CounterMode = TIM_COUNTERMODE_DOWN;
-   htim3.Init.Period = 468;
+   htim3.Init.Period = PWM_PERIOD_US;
    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
    htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
    if (HAL_TIM_Base_Init(&htim3) != HAL_OK) {
@@ -588,7 +592,8 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number) {
     * is updated. If they don't match, then we have an error or an open state.
     */
 
-   Stepper->Move(Dial->CalculateSteps(dir, full_turns, next_number), dir);
+   int numsteps = Dial->CalculateSteps(dir, full_turns, next_number);
+   Stepper->Move(numsteps, dir);
    while (Stepper->Status() == Running) {
    } // Wait for move to finish
    HAL_Delay(DELAY_MS); // Brief delay after move to allow mechanical settling.
@@ -598,23 +603,49 @@ void Move_Stepper(enum Direction dir, int full_turns, int next_number) {
    float position_error;
 
    // Get difference between expected and actual locations
-   if ((next_number == 0) && (encoder_location > 50)) { // Error between 0 and 99.8 is only 0.2
-      position_error = 100 - encoder_location;
-   } else {
-      position_error = next_number - encoder_location;
+   // Detect overshoots and undershoots that straddle zero.
+   //
+   // CW:  Counting down
+   // CCW: Counting up
+   //
+   // Dir | Condition | next_number | encoder_location | Error
+   //
+   // CW  | Over      |   1         |  99              |  -98
+   // CW  | Under     |  99         |   1              |  +98
+   // CW  | Over  *   |  10         |   8              |   +2
+   // CW  | Under *   |  10         |  12              |   -2
+   //
+   // CCW | Over      |  99         |   1              |  +98
+   // CCW | Under     |   1         |  99              |  -98
+   // CCW | Over  *   |  10         |  12              |   -2
+   // CCW | Under *   |  10         |   8              |   +2
+   position_error = next_number - encoder_location;
+   if (dir == CCW){
+      position_error *= -1; // Flip sign for CCW. Want overshoot should be > 0.
    }
+   if (abs(position_error) > 50) { // Error straddles zero
+      if (position_error < 0){
+         position_error += 100;
+      } else {
+         position_error -= 100;
+      }
+   }
+   sprintf(msg, "Target: %02d  Actual: %f  Error: %f\r\n", next_number, encoder_location, position_error);
+   HAL_UART_Transmit(&huart3, (uint8_t*) msg, strlen((char*) msg), 10);
 
    // Update dial location.
    if (abs(position_error) < 0.5) { // Expected and measured are in agreement.
       Dial->UpdatePosition(encoder_location); // Record error so it doesn't snowball.
    } else {
       // TODO if testing for open, then do happy dance. Else error.
-      Error_Handler();
+      uint8_t error_message[] = "\r\nError: Position error too great.\r\n";
+      HAL_UART_Transmit(&huart3, error_message, sizeof(error_message), 10);
+      //Error_Handler();
    }
 
 }
 
-
+//
 
 /* USER CODE END 4 */
 
@@ -626,6 +657,8 @@ void Error_Handler(void) {
    /* USER CODE BEGIN Error_Handler_Debug */
    /* User can add his own implementation to report the HAL error return state */
    __disable_irq();
+   uint8_t error_message[] = "\r\n\r\n!!!!!!!!!! Unhandled exception !!!!!!!!!!\r\n";
+   HAL_UART_Transmit(&huart3, error_message, sizeof(error_message), 10);
    while (1) {
    }
    /* USER CODE END Error_Handler_Debug */

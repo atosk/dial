@@ -1,6 +1,6 @@
 cmath:1756:3:constexpr float std::round(float)	16	static
 Dial.cpp:14:1:std::Dial::Dial()	16	static
 Dial.cpp:17:5:int std::Dial::CalculateSteps(Direction, uint8_t, float)	32	static
-Dial.cpp:45:6:void std::Dial::UpdatePosition(float)	16	static
-Dial.cpp:50:7:float std::Dial::GetPosition()	16	static
-Dial.cpp:54:1:std::Dial::~Dial()	16	static
+Dial.cpp:46:6:void std::Dial::UpdatePosition(float)	16	static
+Dial.cpp:51:7:float std::Dial::GetPosition()	16	static
+Dial.cpp:55:1:std::Dial::~Dial()	16	static
